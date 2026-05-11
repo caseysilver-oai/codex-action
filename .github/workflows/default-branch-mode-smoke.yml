@@ -39,6 +39,8 @@ jobs:
 
       - name: Run action in trusted default-branch mode
         uses: caseysilver-oai/codex-action@caseysilver/trusted-project-instructions-mode
+        env:
+          PATH: ${{ runner.temp }}/codex-shim:/opt/hostedtoolcache/node/20.20.2/x64/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
         with:
           prompt: "smoke test"
           codex-home: ${{ runner.temp }}/codex-home
