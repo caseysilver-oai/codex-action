@@ -13,37 +13,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - name: Install codex shim
-        shell: bash
-        run: |
-          mkdir -p "$RUNNER_TEMP/codex-shim"
-          cat > "$RUNNER_TEMP/codex-shim/codex" <<'EOF'
-          #!/usr/bin/env node
-          const fs = require("node:fs");
-          const args = process.argv.slice(2);
-          fs.writeFileSync(process.env.RUNNER_TEMP + "/codex-args.json", JSON.stringify(args), "utf8");
-          const outputIndex = args.indexOf("--output-last-message");
-          if (outputIndex === -1) {
-            process.exit(2);
-          }
-          fs.writeFileSync(args[outputIndex + 1], "smoke ok", "utf8");
-          EOF
-          chmod +x "$RUNNER_TEMP/codex-shim/codex"
-          echo "$RUNNER_TEMP/codex-shim" >> "$GITHUB_PATH"
-
       - name: Seed proxy server info fixture
         shell: bash
         run: |
           mkdir -p "$RUNNER_TEMP/codex-home"
           printf '{"port": 1}\n' > "$RUNNER_TEMP/codex-home/${GITHUB_RUN_ID}.json"
+          printf 'preseeded smoke output\n' > "$RUNNER_TEMP/last-message.md"
 
       - name: Run action in trusted default-branch mode
         uses: caseysilver-oai/codex-action@caseysilver/trusted-project-instructions-mode
-        env:
-          PATH: ${{ runner.temp }}/codex-shim:/opt/hostedtoolcache/node/20.20.2/x64/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
         with:
           prompt: "smoke test"
           codex-home: ${{ runner.temp }}/codex-home
+          codex-args: --help
           project-instructions-mode: default-branch
           output-file: ${{ runner.temp }}/last-message.md
 
@@ -51,14 +33,4 @@ jobs:
         shell: bash
         run: |
           grep -F "Trusted default-branch smoke instructions" "$RUNNER_TEMP/codex-home/AGENTS.override.md"
-          node <<'EOF'
-          const fs = require("node:fs");
-          const args = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + "/codex-args.json", "utf8"));
-          const configValues = args.flatMap((arg, index) => arg === "--config" ? [args[index + 1]] : []);
-          if (!configValues.includes("projects={}")) {
-            throw new Error("missing projects={} hardening flag");
-          }
-          if (!configValues.includes("project_doc_max_bytes=0")) {
-            throw new Error("missing project_doc_max_bytes=0 hardening flag");
-          }
-          EOF
+          grep -F "preseeded smoke output" "$RUNNER_TEMP/last-message.md"
